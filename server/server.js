@@ -8,10 +8,16 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// إعدادات CORS
+// ✅ إعدادات CORS - أضف نطاق Cloudflare Pages
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
-  methods: ['GET', 'POST', 'DELETE'],
+  origin: [
+    'http://localhost:5173',                    // التطوير المحلي
+    'http://localhost:3000',                    // التطوير المحلي
+    'https://madar-app-git.pages.dev',          // ✅ Cloudflare Pages (حالياً)
+    'https://app.madartech.uk',                 // ✅ نطاقك النهائي
+    'https://cloud.madartech.uk'                // ✅ منصتك السحابية
+  ],
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
@@ -73,7 +79,6 @@ app.post('/api/build', async (req, res) => {
         break;
         
       case 'android':
-        // استخدام PWA Builder API
         const response = await fetch('https://www.pwabuilder.com/api/build/android', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -110,4 +115,7 @@ function execCommand(command) {
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📡 API: http://localhost:${PORT}/api`);
+  console.log(`✅ CORS enabled for:`);
+  console.log(`   - https://madar-app-git.pages.dev`);
+  console.log(`   - https://app.madartech.uk`);
 });
