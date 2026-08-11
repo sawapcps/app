@@ -67,19 +67,24 @@ export async function saveProject(project: Omit<Project, 'id' | 'created_at' | '
 
 // ✅ بناء التطبيق (إنشاء ملف APK/EXE/DMG)
 export async function buildApp(url: string, name: string, platform: string): Promise<Blob> {
-  const response = await fetch(`${API_URL}/build`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${API_KEY}`,
-    },
-    body: JSON.stringify({ url, name, platform }),
-  });
-  
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || 'فشل في بناء التطبيق');
+  try {
+    const response = await fetch(`${API_URL}/build`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${API_KEY}`,
+      },
+      body: JSON.stringify({ url, name, platform }),
+    });
+    
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'فشل في بناء التطبيق');
+    }
+    
+    return await response.blob();
+  } catch (error) {
+    console.error('❌ خطأ في بناء التطبيق:', error);
+    throw error;
   }
-  
-  return await response.blob();
 }
