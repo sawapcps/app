@@ -13,6 +13,7 @@ const platforms: { key: keyof Platforms; label: string; file: string; icon: stri
 const validUrl = (value: string) => {
   try { const u = new URL(value); return ['http:', 'https:'].includes(u.protocol); } catch { return false; }
 };
+
 function App() {
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
@@ -24,9 +25,33 @@ function App() {
   const [saving, setSaving] = useState(false);
   const [building, setBuilding] = useState(false);
   const [message, setMessage] = useState('');
-  const [error, setError] = useState('');  // ✅ علامة = واحدة فقط
+  const [error, setError] = useState('');
+
+  // تحميل المشاريع
   useEffect(() => { void load(); }, []);
   async function load() { const data = await loadProjects(); setProjects(data); setLoading(false); }
+
+  // ✅ معالجة مسار /app/:id
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (path.startsWith('/app/')) {
+      const id = path.split('/app/')[1];
+      if (id) {
+        loadProjects().then(projects => {
+          const found = projects.find(p => p.id.startsWith(id));
+          if (found) {
+            document.body.innerHTML = `
+              <div style="width:100vw;height:100vh;margin:0;padding:0;overflow:hidden;">
+                <iframe src="${found.url}" style="width:100%;height:100%;border:none;" />
+              </div>
+            `;
+          } else {
+            document.body.innerHTML = `<p style="text-align:center;margin-top:50px;">❌ لم يتم العثور على التطبيق</p>`;
+          }
+        });
+      }
+    }
+  }, []);
 
   function shareLink(p: Project) { return `${window.location.origin}/app/${p.id.slice(0, 8)}`; }
 
@@ -50,7 +75,7 @@ function App() {
     setMessage('تم تجهيز رابط التطبيق والحزم بنجاح.');
   }
 
-  // ✅ دالة تحميل التطبيق الحقيقي (معدلة)
+  // ✅ دالة التحميل المصححة
   async function downloadPackage(p: Project, key: string) {
     const platform = platforms.find(x => x.key === key)!;
     
@@ -59,10 +84,9 @@ function App() {
       setMessage(`⏳ جاري بناء تطبيق ${platform.label}...`);
       setError('');
       
-      // ✅ محاولة بناء التطبيق عبر الخادم
+      // محاولة بناء التطبيق عبر الخادم
       const blob = await buildApp(p.url, p.name, key);
       
-      // تحديد امتداد الملف
       const extensions = {
         windows: 'exe',
         android: 'apk',
@@ -72,7 +96,6 @@ function App() {
       const safe = p.name.replace(/[^a-zA-Z0-9\u0600-\u06ff]+/g, '-').toLowerCase();
       const ext = extensions[key as keyof typeof extensions] || 'zip';
       
-      // تحميل الملف
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = `${safe}.${ext}`;
@@ -86,7 +109,7 @@ function App() {
     } catch (err) {
       console.error('Build error:', err);
       
-      // ❌ إذا فشل البناء، استخدم ZIP كبديل
+      // Fallback: ZIP
       setMessage(`⚠️ فشل بناء التطبيق، جارٍ تحميل حزمة الإعدادات...`);
       
       try {
