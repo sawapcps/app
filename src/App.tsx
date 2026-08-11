@@ -4,17 +4,20 @@ import JSZip from 'jszip';
 import { Project, Platforms } from './types';
 import { loadProjects, saveProject, buildApp } from './lib/storage';
 
+// تعريف المنصات المدعومة
 const platforms: { key: keyof Platforms; label: string; file: string; icon: string }[] = [
   { key: 'windows', label: 'Windows', file: 'EXE', icon: '⊞' },
   { key: 'android', label: 'Android', file: 'APK', icon: '◈' },
   { key: 'macos', label: 'macOS', file: 'DMG', icon: '●' },
 ];
 
+// التحقق من صحة الرابط
 const validUrl = (value: string) => {
   try { const u = new URL(value); return ['http:', 'https:'].includes(u.protocol); } catch { return false; }
 };
 
 function App() {
+  // حالات التطبيق
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [chosen, setChosen] = useState<Platforms>({ windows: true, android: true, macos: true });
@@ -27,11 +30,15 @@ function App() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  // تحميل المشاريع
+  // تحميل المشاريع عند بدء التطبيق
   useEffect(() => { void load(); }, []);
-  async function load() { const data = await loadProjects(); setProjects(data); setLoading(false); }
+  async function load() { 
+    const data = await loadProjects(); 
+    setProjects(data); 
+    setLoading(false); 
+  }
 
-  // ✅ معالجة مسار /app/:id
+  // ✅ معالجة رابط المعاينة /app/:id
   useEffect(() => {
     const path = window.location.pathname;
     if (path.startsWith('/app/')) {
@@ -40,6 +47,7 @@ function App() {
         loadProjects().then(projects => {
           const found = projects.find(p => p.id.startsWith(id));
           if (found) {
+            // عرض الموقع داخل iframe
             document.body.innerHTML = `
               <div style="width:100vw;height:100vh;margin:0;padding:0;overflow:hidden;">
                 <iframe src="${found.url}" style="width:100%;height:100%;border:none;" />
@@ -53,20 +61,36 @@ function App() {
     }
   }, []);
 
-  function shareLink(p: Project) { return `${window.location.origin}/app/${p.id.slice(0, 8)}`; }
+  // ✅ إنشاء رابط المشاركة (يعمل محلياً وعبر الإنترنت)
+  function shareLink(p: Project) { 
+    // استخدام الرابط الحالي مع إضافة /app/:id
+    return `${window.location.origin}/app/${p.id.slice(0, 8)}`; 
+  }
 
+  // فتح نتيجة التطبيق بعد الإنشاء
   async function openResult(p: Project) {
-    setSelected(p); setMessage('');
-    const data = await QRCode.toDataURL(shareLink(p), { width: 260, margin: 2, color: { dark: '#07111f', light: '#ffffff' } });
+    setSelected(p); 
+    setMessage('');
+    // إنشاء باركود QR
+    const data = await QRCode.toDataURL(shareLink(p), { 
+      width: 260, 
+      margin: 2, 
+      color: { dark: '#07111f', light: '#ffffff' } 
+    });
     setQr(data);
   }
 
+  // إنشاء تطبيق جديد
   async function create(e: FormEvent) {
-    e.preventDefault(); setError(''); setMessage('');
+    e.preventDefault(); 
+    setError(''); 
+    setMessage('');
+    
     const target = url.trim().startsWith('http') ? url.trim() : `https://${url.trim()}`;
     if (!name.trim()) return setError('اكتب اسم التطبيق أولاً.');
     if (!validUrl(target)) return setError('أدخل رابطاً صحيحاً مثل example.com');
     if (!Object.values(chosen).some(Boolean)) return setError('اختر منصة واحدة على الأقل.');
+    
     setSaving(true);
     const p = await saveProject({ name: name.trim(), url: target, platforms: chosen });
     setSaving(false);
@@ -75,18 +99,19 @@ function App() {
     setMessage('تم تجهيز رابط التطبيق والحزم بنجاح.');
   }
 
-  // ✅ دالة التحميل المصححة
+  // ✅ دالة تحميل التطبيق (للمنصات الثلاث)
   async function downloadPackage(p: Project, key: string) {
     const platform = platforms.find(x => x.key === key)!;
     
     try {
       setBuilding(true);
-      setMessage(`⏳ جاري بناء تطبيق ${platform.label}...`);
+      setMessage(`جاري بناء تطبيق ${platform.label}...`);
       setError('');
       
-      // محاولة بناء التطبيق عبر الخادم
+      // محاولة بناء التطبيق عبر الخادم (Worker)
       const blob = await buildApp(p.url, p.name, key);
       
+      // تحديد امتداد الملف حسب المنصة
       const extensions = {
         windows: 'exe',
         android: 'apk',
@@ -96,6 +121,7 @@ function App() {
       const safe = p.name.replace(/[^a-zA-Z0-9\u0600-\u06ff]+/g, '-').toLowerCase();
       const ext = extensions[key as keyof typeof extensions] || 'zip';
       
+      // تحميل الملف
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = `${safe}.${ext}`;
@@ -109,7 +135,7 @@ function App() {
     } catch (err) {
       console.error('Build error:', err);
       
-      // Fallback: ZIP
+      // ❌ إذا فشل البناء، استخدم ZIP كبديل
       setMessage(`⚠️ فشل بناء التطبيق، جارٍ تحميل حزمة الإعدادات...`);
       
       try {
@@ -141,9 +167,23 @@ function App() {
     }
   }
 
-  function copy() { if (!selected) return; void navigator.clipboard?.writeText(shareLink(selected)); setMessage('تم نسخ الرابط العادي.'); }
-  function downloadQr() { if (!qr) return; const a = document.createElement('a'); a.href = qr; a.download = 'wraply-qr-code.png'; a.click(); }
+  // نسخ الرابط
+  function copy() { 
+    if (!selected) return; 
+    void navigator.clipboard?.writeText(shareLink(selected)); 
+    setMessage('تم نسخ الرابط العادي.'); 
+  }
+  
+  // تنزيل الباركود
+  function downloadQr() { 
+    if (!qr) return; 
+    const a = document.createElement('a'); 
+    a.href = qr; 
+    a.download = 'wraply-qr-code.png'; 
+    a.click(); 
+  }
 
+  // واجهة التطبيق
   return (
     <div className="shell">
       <header>
