@@ -4,7 +4,7 @@ import JSZip from 'jszip';
 import { Project, Platforms } from './types';
 import { loadProjects, saveProject, buildApp } from './lib/storage';
 
-// تعريف المنصات المدعومة
+// تعريف المنصات المدعومة (ثلاث منصات)
 const platforms: { key: keyof Platforms; label: string; file: string; icon: string }[] = [
   { key: 'windows', label: 'Windows', file: 'EXE', icon: '⊞' },
   { key: 'android', label: 'Android', file: 'APK', icon: '◈' },
@@ -63,7 +63,6 @@ function App() {
 
   // ✅ إنشاء رابط المشاركة (يعمل محلياً وعبر الإنترنت)
   function shareLink(p: Project) { 
-    // استخدام الرابط الحالي مع إضافة /app/:id
     return `${window.location.origin}/app/${p.id.slice(0, 8)}`; 
   }
 
@@ -105,10 +104,10 @@ function App() {
     
     try {
       setBuilding(true);
-      setMessage(`جاري بناء تطبيق ${platform.label}...`);
+      setMessage(`⏳ جاري بناء تطبيق ${platform.label}...`);
       setError('');
       
-      // محاولة بناء التطبيق عبر الخادم (Worker)
+      // ✅ محاولة بناء التطبيق عبر الخادم
       const blob = await buildApp(p.url, p.name, key);
       
       // تحديد امتداد الملف حسب المنصة
